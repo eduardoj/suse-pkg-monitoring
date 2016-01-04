@@ -14,12 +14,22 @@ RUN cpan Mojolicious
 
 
 # Mojolicious application
-ENV mojo_dir /var/virtual/pkg_monitoring/
+ENV mojo_app_name pkg_monitoring
+ENV mojo_dir /var/virtual/$mojo_app_name
 
-ADD t script public lib templates $mojo_dir
+RUN mkdir -p $mojo_dir/log
 
-EXPOSE 8080
+ADD $mojo_app_name.conf $mojo_dir/
+
+ADD lib $mojo_dir/lib
+ADD public $mojo_dir/public
+ADD script $mojo_dir/script
+ADD t $mojo_dir/t
+ADD templates $mojo_dir/templates
 
 WORKDIR $mojo_dir
 
-CMD hypnotoad script/pkg_monitoring
+EXPOSE 8080
+
+CMD hypnotoad -f script/$mojo_app_name
+#CMD MOJO_MODE=development hypnotoad -f script/$mojo_app_name

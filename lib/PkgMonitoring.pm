@@ -1,9 +1,13 @@
 package PkgMonitoring;
 use Mojo::Base 'Mojolicious';
 
-# This method will run once at server start
+use Mojolicious::Plugin::Config;
+
+
 sub startup {
   my $self = shift;
+
+  $self->plugin('Config');
 
   # Documentation browser under "/perldoc"
   $self->plugin('PODRenderer');
