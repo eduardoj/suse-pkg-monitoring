@@ -1,0 +1,11 @@
+% layout 'default';
+% title 'Package Monitoring';
+
+<script>
+   var events = new EventSource('<%= url_for 'events' %>');
+
+   // Subscribe to "dice" event
+   events.addEventListener('dice', function(event) {
+      document.body.innerHTML += event.data + '<br/>';
+   }, false);
+</script>
