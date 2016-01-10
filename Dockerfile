@@ -10,7 +10,7 @@ RUN zypper --non-interactive install curl git less vim wget
 ENV cpan_config_file /root/.cpan/CPAN/MyConfig.pm
 COPY files$cpan_config_file $cpan_config_file
 
-RUN cpan Mojolicious AnyEvent::Filesys::Notify
+RUN cpan Mojolicious AnyEvent::Filesys::Notify EV
 
 
 # Mojolicious application
