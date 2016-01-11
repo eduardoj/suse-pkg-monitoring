@@ -4,16 +4,17 @@ use Mojo::Base 'Mojolicious::Controller';
 use AnyEvent::Filesys::Notify;
 use EV;
 use Mojo::IOLoop;
+use Mojo::JSON qw(encode_json);
 
 
 my @cons = ();
 
+my %zypper_status = ();
+
 my $notifier = AnyEvent::Filesys::Notify->new(
-   dirs     => [ '/root' ],
-#   dirs     => [ '/var/run' ],
-#   interval => 2.0,             # Optional depending on underlying watcher
-   filter   => qr#^/root/prueba\.txt$#,
-#   filter   => qr#^/var/run/zypp\.pid$#,
+   dirs     => [ '/var/run' ],
+#   interval => 2.0,    # Optional depending on underlying watcher
+   filter   => qr#/run/zypp\.pid$#,    # Could be /var/run/zypp.pid or /run/zypp.pid
    cb       => sub {
       my (@events) = @_;
 
@@ -21,6 +22,7 @@ my $notifier = AnyEvent::Filesys::Notify->new(
       for my $event (@events) {
          $events_string .= $event->path.':';
 
+         my $zypp_pid;
          if ($event->is_created) {
             $events_string .= 'created';
          }
@@ -28,28 +30,46 @@ my $notifier = AnyEvent::Filesys::Notify->new(
             $events_string .= 'modified';
 
             # Read file content
-            my $filename = '/root/prueba.txt';
+            my $filename = '/var/run/zypp.pid';
             open FH, '<', $filename
                or die "error opening $filename: $!";
-            my $data = do { local $/; <FH> };
+            $zypp_pid = do { local $/; <FH> };
             close FH;
 
-            chomp $data;
-            $events_string .= ', file content: '.$data;
+            chomp $zypp_pid;
+            $events_string .= ', file content: '.$zypp_pid;
+
+            if ($zypp_pid) {
+               $zypper_status{status} = 'Running';
+               $zypper_status{pid} = $zypp_pid;
+               my $command = "ps -o cmd= -p $zypp_pid";
+               my $cmd_string = `$command`;
+               chomp $cmd_string;
+               $zypper_status{cmd} = $cmd_string;
+            }
+            else {
+               $zypper_status{status} = 'Not running';
+               $zypper_status{last_pid} = $zypper_status{pid};
+               delete $zypper_status{pid};
+               delete $zypper_status{cmd};
+            }
          }
          elsif ($event->is_deleted) {
             $events_string .= 'deleted';
          }
          else {
             $events_string .= 'unknown';
+            $zypper_status{status} = 'Unknown';
          }
          $events_string .= ', ';
       }
       $events_string =~ s/, $//;
 
       foreach my $con (@cons) {
-#         $con->app->log->debug("events cb entered! con: $con, worker: $$, events_string: $events_string");
-         $con->write("event:dice\ndata: $events_string\n\n");
+         #$con->app->log->debug("events cb entered! con: $con, worker: $$, events_string: $events_string");
+         #$con->write("event:dice\ndata: $events_string\n\n");
+         my $json = encode_json(\%zypper_status);
+         $con->write("event:dice\ndata: $json\n\n");
       }
    },
 #   parse_events => 1,  # Improves efficiency on certain platforms
@@ -78,8 +98,8 @@ sub events {
    $self->on(finish => sub {
       # Remove $self from @cons
 
-#      print STDERR "finish, before deleting, \$self: '$self'\n";
-#      print STDERR "\@cons: '".join ("', '", @cons)."'\n";
+      #print STDERR "finish, before deleting, \$self: '$self'\n";
+      #print STDERR "\@cons: '".join ("', '", @cons)."'\n";
 
       my $index = 0;
       foreach my $value (@cons) {
@@ -90,7 +110,7 @@ sub events {
          $index ++;
       }
 
-#      print STDERR "\@cons: '".join ("', '", @cons)."'\n";
+      #print STDERR "\@cons: '".join ("', '", @cons)."'\n";
    });
 }
 
