@@ -1,6 +1,6 @@
 FROM opensuse:latest
 
-# Neccesary packages
+# Necessary packages
 RUN zypper --non-interactive install cpanm make gcc
 # Optional packages
 RUN zypper --non-interactive install curl git less vim wget
